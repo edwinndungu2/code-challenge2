@@ -10,15 +10,9 @@ class Magazine:
         conn = get_connection()
         cursor = conn.cursor()
         if self.id:
-            cursor.execute(
-                "UPDATE magazines SET name = ?, category = ? WHERE id = ?",
-                (self.name, self.category, self.id)
-            )
+            cursor.execute("UPDATE magazines SET name = ?, category = ? WHERE id = ?", (self.name, self.category, self.id))
         else:
-            cursor.execute(
-                "INSERT INTO magazines (name, category) VALUES (?, ?)",
-                (self.name, self.category)
-            )
+            cursor.execute("INSERT INTO magazines (name, category) VALUES (?, ?)", (self.name, self.category))
             self.id = cursor.lastrowid
         conn.commit()
         conn.close()
@@ -61,10 +55,7 @@ class Magazine:
     def article_titles(self):
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("""
-            SELECT title FROM articles
-            WHERE magazine_id = ?
-        """, (self.id,))
+        cursor.execute("SELECT title FROM articles WHERE magazine_id = ?", (self.id,))
         rows = cursor.fetchall()
         conn.close()
         return [row["title"] for row in rows]
@@ -74,7 +65,7 @@ class Magazine:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT a.*, COUNT(art.id) AS article_count FROM authors a
+            SELECT a.*, COUNT(art.id) as article_count FROM authors a
             JOIN articles art ON a.id = art.author_id
             WHERE art.magazine_id = ?
             GROUP BY a.id
