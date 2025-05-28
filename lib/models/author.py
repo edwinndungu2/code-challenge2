@@ -1,9 +1,7 @@
 from lib.db.connection import get_connection
-from lib.models.article import Article
-from lib.models.magazine import Magazine
 
 class Author:
-    def __init__(self, name, id=None):
+    def __init__(self, id=None, name=None):
         self.id = id
         self.name = name
 
@@ -31,28 +29,23 @@ class Author:
         cursor.execute("SELECT * FROM authors WHERE id = ?", (id,))
         row = cursor.fetchone()
         conn.close()
-        if row:
-            return cls(row["name"], row["id"])
-        return None
+        return cls(id=row["id"], name=row["name"]) if row else None
 
     @classmethod
-    def all(cls):
+    def find_by_name(cls, name):
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM authors")
-        rows = cursor.fetchall()
+        cursor.execute("SELECT * FROM authors WHERE name = ?", (name,))
+        row = cursor.fetchone()
         conn.close()
-        return [cls(row["name"], row["id"]) for row in rows]
+        return cls(id=row["id"], name=row["name"]) if row else None
 
     def articles(self):
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM articles WHERE author_id = ?", (self.id,))
-        rows = cursor.fetchall()
-        conn.close()
-        return [Article(row["title"], row["author_id"], row["magazine_id"], row["id"]) for row in rows]
+        from lib.models.article import Article  # ✅ local import
+        return Article.find_by_author_id(self.id)
 
     def magazines(self):
+        from lib.models.magazine import Magazine  # ✅ local import
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
@@ -62,10 +55,11 @@ class Author:
         """, (self.id,))
         rows = cursor.fetchall()
         conn.close()
-        return [Magazine(row["name"], row["category"], row["id"]) for row in rows]
+        return [Magazine(id=row["id"], name=row["name"], category=row["category"]) for row in rows]
 
     def add_article(self, magazine, title):
-        article = Article(title, self.id, magazine.id)
+        from lib.models.article import Article  # ✅ local import
+        article = Article(title=title, author_id=self.id, magazine_id=magazine.id)
         article.save()
         return article
 
@@ -77,6 +71,6 @@ class Author:
             JOIN articles a ON m.id = a.magazine_id
             WHERE a.author_id = ?
         """, (self.id,))
-        categories = [row["category"] for row in cursor.fetchall()]
+        rows = cursor.fetchall()
         conn.close()
-        return categories
+        return [row["category"] for row in rows]

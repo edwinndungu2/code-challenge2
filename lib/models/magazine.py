@@ -1,9 +1,7 @@
 from lib.db.connection import get_connection
-from lib.models.article import Article
-from lib.models.author import Author
 
 class Magazine:
-    def __init__(self, name, category, id=None):
+    def __init__(self, id=None, name=None, category=None):
         self.id = id
         self.name = name
         self.category = category
@@ -32,52 +30,56 @@ class Magazine:
         cursor.execute("SELECT * FROM magazines WHERE id = ?", (id,))
         row = cursor.fetchone()
         conn.close()
-        if row:
-            return cls(row["name"], row["category"], row["id"])
-        return None
+        return cls(id=row["id"], name=row["name"], category=row["category"]) if row else None
 
     @classmethod
-    def all(cls):
+    def find_by_name(cls, name):
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM magazines")
-        rows = cursor.fetchall()
+        cursor.execute("SELECT * FROM magazines WHERE name = ?", (name,))
+        row = cursor.fetchone()
         conn.close()
-        return [cls(row["name"], row["category"], row["id"]) for row in rows]
+        return cls(id=row["id"], name=row["name"], category=row["category"]) if row else None
 
     def articles(self):
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM articles WHERE magazine_id = ?", (self.id,))
-        rows = cursor.fetchall()
-        conn.close()
-        return [Article(row["title"], row["author_id"], row["magazine_id"], row["id"]) for row in rows]
+        from lib.models.article import Article  # ✅ local import
+        return Article.find_by_magazine_id(self.id)
 
     def contributors(self):
+        from lib.models.author import Author  # ✅ local import
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT DISTINCT a.* FROM authors a
-            JOIN articles ar ON a.id = ar.author_id
-            WHERE ar.magazine_id = ?
+            JOIN articles art ON a.id = art.author_id
+            WHERE art.magazine_id = ?
         """, (self.id,))
         rows = cursor.fetchall()
         conn.close()
-        return [Author(row["name"], row["id"]) for row in rows]
+        return [Author(id=row["id"], name=row["name"]) for row in rows]
 
     def article_titles(self):
-        return [article.title for article in self.articles()]
-
-    def contributing_authors(self):
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT a.*, COUNT(*) as count FROM authors a
-            JOIN articles ar ON a.id = ar.author_id
-            WHERE ar.magazine_id = ?
-            GROUP BY a.id
-            HAVING count > 2
+            SELECT title FROM articles
+            WHERE magazine_id = ?
         """, (self.id,))
         rows = cursor.fetchall()
         conn.close()
-        return [Author(row["name"], row["id"]) for row in rows]
+        return [row["title"] for row in rows]
+
+    def contributing_authors(self):
+        from lib.models.author import Author  # ✅ local import
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT a.*, COUNT(art.id) AS article_count FROM authors a
+            JOIN articles art ON a.id = art.author_id
+            WHERE art.magazine_id = ?
+            GROUP BY a.id
+            HAVING COUNT(art.id) > 2
+        """, (self.id,))
+        rows = cursor.fetchall()
+        conn.close()
+        return [Author(id=row["id"], name=row["name"]) for row in rows]
