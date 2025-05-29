@@ -1,7 +1,7 @@
 from lib.db.connection import get_connection
 
 class Author:
-    def __init__(self, id=None, name=None):
+    def __init__(self, name, id=None):
         self.id = id
         self.name = name
 
@@ -23,7 +23,7 @@ class Author:
         cursor.execute("SELECT * FROM authors WHERE id = ?", (id,))
         row = cursor.fetchone()
         conn.close()
-        return cls(id=row["id"], name=row["name"]) if row else None
+        return cls(name=row["name"], id=row["id"]) if row else None
 
     @classmethod
     def find_by_name(cls, name):
@@ -32,14 +32,14 @@ class Author:
         cursor.execute("SELECT * FROM authors WHERE name = ?", (name,))
         row = cursor.fetchone()
         conn.close()
-        return cls(id=row["id"], name=row["name"]) if row else None
+        return cls(name=row["name"], id=row["id"]) if row else None
 
     def articles(self):
-        from lib.models.article import Article  # ✅ local import
+        from lib.models.article import Article
         return Article.find_by_author_id(self.id)
 
     def magazines(self):
-        from lib.models.magazine import Magazine  # ✅ local import
+        from lib.models.magazine import Magazine
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
@@ -49,10 +49,10 @@ class Author:
         """, (self.id,))
         rows = cursor.fetchall()
         conn.close()
-        return [Magazine(id=row["id"], name=row["name"], category=row["category"]) for row in rows]
+        return [Magazine(name=row["name"], category=row["category"], id=row["id"]) for row in rows]
 
     def add_article(self, magazine, title):
-        from lib.models.article import Article  # ✅ local import
+        from lib.models.article import Article
         article = Article(title=title, author_id=self.id, magazine_id=magazine.id)
         article.save()
         return article
