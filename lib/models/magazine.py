@@ -67,3 +67,20 @@ class Magazine:
                 authors.append(author)
         conn.close()
         return authors
+
+    def contributors(self):
+        from lib.models.author import Author
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT a.author_id FROM articles a
+            WHERE a.magazine_id = ?
+        """, (self.id,))
+        rows = cursor.fetchall()
+        conn.close()
+        return [Author.find_by_id(row["author_id"]) for row in rows]
+
+    def article_titles(self):
+        from lib.models.article import Article
+        articles = self.articles()
+        return [article.title for article in articles]
